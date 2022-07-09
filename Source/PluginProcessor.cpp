@@ -22,6 +22,20 @@ SimpleMBCompAudioProcessor::SimpleMBCompAudioProcessor()
                        )
 #endif
 {
+    Attack = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("Attack"));
+    jassert(Attack != nullptr);
+
+    Release = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("Release"));
+    jassert(Release != nullptr);
+
+    Threshold = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter("Threshold"));
+    jassert(Threshold != nullptr);
+
+    Ratio = dynamic_cast<juce::AudioParameterChoice*>(apvts.getParameter("Ratio"));
+    jassert(Ratio != nullptr);
+
+    Bypassed = dynamic_cast<juce::AudioParameterBool*>(apvts.getParameter("Bypassed"));
+    jassert(Bypassed != nullptr);
 }
 
 SimpleMBCompAudioProcessor::~SimpleMBCompAudioProcessor()
@@ -151,8 +165,16 @@ void SimpleMBCompAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    compressor.setAttack(Attack->get());
+    compressor.setRelease(Release->get());
+    compressor.setThreshold(Threshold->get());
+    compressor.setRatio(Ratio->getCurrentChoiceName().getFloatValue());
+
+
     auto block = juce::dsp::AudioBlock<float>(buffer);
     auto context = juce::dsp::ProcessContextReplacing<float>(block);
+
+    context.isBypassed = Bypassed->get();
 
     compressor.process(context);
 }
@@ -209,6 +231,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
     }
 
     layout.add(std::make_unique<AudioParameterChoice>("Ratio", "Ratio", sa, 3));
+
+    layout.add(std::make_unique<AudioParameterBool>("Bypassed", "Bypassed", false));
         
 
     return layout;
