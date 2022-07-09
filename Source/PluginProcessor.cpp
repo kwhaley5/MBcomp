@@ -166,7 +166,8 @@ bool SimpleMBCompAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* SimpleMBCompAudioProcessor::createEditor()
 {
-    return new SimpleMBCompAudioProcessorEditor (*this);
+    //return new SimpleMBCompAudioProcessorEditor (*this);
+    return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
@@ -182,6 +183,31 @@ void SimpleMBCompAudioProcessor::setStateInformation (const void* data, int size
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
 }
+
+juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::createParameterLayout() 
+{
+    APVTS::ParameterLayout layout;
+
+    using namespace juce;
+
+    layout.add(std::make_unique<AudioParameterFloat>("Threshold", "Threshold", NormalisableRange<float>(-60, 12, 1, 1), 0)); 
+    layout.add(std::make_unique<AudioParameterFloat>("Attack", "Attack", NormalisableRange<float>(5, 500, 1, 1), 50));
+    layout.add(std::make_unique<AudioParameterFloat>("Release", "Release", NormalisableRange<float>(5, 500, 1, 1), 250));
+
+    auto ratioChoices = std::vector<double>{ 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100 };
+    juce::StringArray sa;
+    for (auto choice : ratioChoices)
+    {
+        sa.add(juce::String(choice, 1));
+    }
+
+    layout.add(std::make_unique<AudioParameterChoice>("Ratio", "Ratio", sa, 3));
+        
+
+    return layout;
+}
+
+
 
 //==============================================================================
 // This creates new instances of the plugin..
