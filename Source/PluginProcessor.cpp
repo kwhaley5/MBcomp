@@ -43,11 +43,28 @@ SimpleMBCompAudioProcessor::SimpleMBCompAudioProcessor()
         jassert(param != nullptr);
     };
 
-    floatHelper(compressor.Attack, names::Attack_Low_Band);
-    floatHelper(compressor.Release, names::Release_Low_Band);
-    floatHelper(compressor.Threshold, names::Threshold_Low_Band);
-    choiceHelper(compressor.Ratio, names::Ratio_Low_Band);
-    boolHelper(compressor.Bypassed, names::Bypassed_Low_Band);
+    //Low end compressor
+    floatHelper(lowBandComp.Attack, names::Attack_Low_Band);
+    floatHelper(lowBandComp.Release, names::Release_Low_Band);
+    floatHelper(lowBandComp.Threshold, names::Threshold_Low_Band);
+    choiceHelper(lowBandComp.Ratio, names::Ratio_Low_Band);
+    boolHelper(lowBandComp.Bypassed, names::Bypassed_Low_Band);
+
+    //mid compressor
+    floatHelper(midBandComp.Attack, names::Attack_Mid_Band);
+    floatHelper(midBandComp.Release, names::Release_Mid_Band);
+    floatHelper(midBandComp.Threshold, names::Threshold_Mid_Band);
+    choiceHelper(midBandComp.Ratio, names::Ratio_Mid_Band);
+    boolHelper(midBandComp.Bypassed, names::Bypassed_Mid_Band);
+
+    //high end compressor
+    floatHelper(highBandComp.Attack, names::Attack_High_Band);
+    floatHelper(highBandComp.Release, names::Release_High_Band);
+    floatHelper(highBandComp.Threshold, names::Threshold_High_Band);
+    choiceHelper(highBandComp.Ratio, names::Ratio_High_Band);
+    boolHelper(highBandComp.Bypassed, names::Bypassed_High_Band);
+
+    //crossovers
     floatHelper(lowMidCrossover, names::Low_Mid_Crossover_Freq);
     floatHelper(midHighCrossover, names::Mid_High_Crossover_Freq);
 
@@ -137,7 +154,9 @@ void SimpleMBCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
     spec.numChannels = getTotalNumOutputChannels();
     spec.sampleRate = sampleRate;
 
-    compressor.prepare(spec);
+    for (auto comp : compressors)
+        comp.prepare(spec);
+
     LP1.prepare(spec);
     HP1.prepare(spec);
 
@@ -199,8 +218,10 @@ void SimpleMBCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // compressor.updateCompressorSettings();
-    // compressor.process(buffer);
+    for (auto& compressor : compressors)
+        compressor.updateCompressorSettings();
+
+    // compressors.process(buffer);
 
     for (auto& fb : filterBuffers)
     {
@@ -232,12 +253,14 @@ void SimpleMBCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     LP2.process(fb1Ctx);
 
     HP2.process(fb2Ctx);
-
+    
+    for (size_t i = 0; i < filterBuffers.size(); ++i)
+    {
+        compressors[i].process(filterBuffers[i]);
+    }
+    
     auto numSamples = buffer.getNumSamples();
     auto numChannels = buffer.getNumChannels();
-
-    if (compressor.Bypassed->get())
-        return;
 
     buffer.clear();
 
@@ -298,9 +321,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
     using namespace Params;
     const auto& params = GetParams();
 
+    //low end compressor parameters
     layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Threshold_Low_Band), params.at(names::Threshold_Low_Band), NormalisableRange<float>(-60, 12, 1, 1), 0));
     layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Attack_Low_Band), params.at(names::Attack_Low_Band), NormalisableRange<float>(5, 500, 1, 1), 50));
     layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Release_Low_Band), params.at(names::Release_Low_Band), NormalisableRange<float>(5, 500, 1, 1), 250));
+
+    //Mid compressor paramaters
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Threshold_Mid_Band), params.at(names::Threshold_Mid_Band), NormalisableRange<float>(-60, 12, 1, 1), 0));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Attack_Mid_Band), params.at(names::Attack_Mid_Band), NormalisableRange<float>(5, 500, 1, 1), 50));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Release_Mid_Band), params.at(names::Release_Mid_Band), NormalisableRange<float>(5, 500, 1, 1), 250));
+
+    //HIgh end compressor prameters
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Threshold_High_Band), params.at(names::Threshold_High_Band), NormalisableRange<float>(-60, 12, 1, 1), 0));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Attack_High_Band), params.at(names::Attack_High_Band), NormalisableRange<float>(5, 500, 1, 1), 50));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Release_High_Band), params.at(names::Release_High_Band), NormalisableRange<float>(5, 500, 1, 1), 250));
 
     auto ratioChoices = std::vector<double>{ 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100 };
     juce::StringArray sa;
@@ -309,9 +343,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
         sa.add(juce::String(choice, 1));
     }
 
+    //Ratio Parameters
     layout.add(std::make_unique<AudioParameterChoice>(params.at(names::Ratio_Low_Band), params.at(names::Ratio_Low_Band), sa, 3));
+    layout.add(std::make_unique<AudioParameterChoice>(params.at(names::Ratio_Mid_Band), params.at(names::Ratio_Mid_Band), sa, 3));
+    layout.add(std::make_unique<AudioParameterChoice>(params.at(names::Ratio_High_Band), params.at(names::Ratio_High_Band), sa, 3));
 
+    //Bypass Parameters
     layout.add(std::make_unique<AudioParameterBool>(params.at(names::Bypassed_Low_Band), params.at(names::Bypassed_Low_Band), false));
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Bypassed_Mid_Band), params.at(names::Bypassed_Mid_Band), false));
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Bypassed_High_Band), params.at(names::Bypassed_High_Band), false));
 
     layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Low_Mid_Crossover_Freq), params.at(names::Low_Mid_Crossover_Freq), NormalisableRange<float>(20, 999, 1, 1), 400));
 

@@ -33,10 +33,10 @@ namespace Params
 
         Ratio_Low_Band,
         Ratio_Mid_Band,
-        Ratio_High_band,
+        Ratio_High_Band,
 
         Bypassed_Low_Band,
-        Bypasssed_Mid_Band,
+        Bypassed_Mid_Band,
         Bypassed_High_Band
     };
 
@@ -57,9 +57,9 @@ namespace Params
             {Release_High_Band, "Release High Band"},
             {Ratio_Low_Band, "Ratio Low Band"},
             {Ratio_Mid_Band, "Ratio Mid Band"},
-            {Ratio_High_band, "Ratio High Band"},
+            {Ratio_High_Band, "Ratio High Band"},
             {Bypassed_Low_Band, "Bypassed Low Band"},
-            {Bypasssed_Mid_Band, "Bypassed Mid Band"},
+            {Bypassed_Mid_Band, "Bypassed Mid Band"},
             {Bypassed_High_Band, "Bypassed High Band"},
         };
 
@@ -153,8 +153,11 @@ public:
     APVTS apvts{ *this, nullptr, "Parameters", createParameterLayout() };
 private:
     
-    CompressorBand compressor;
-    
+    std::array<CompressorBand, 3> compressors;
+    CompressorBand& lowBandComp = compressors[0];
+    CompressorBand& midBandComp = compressors[1];
+    CompressorBand& highBandComp = compressors[2];
+
     using Filter = juce::dsp::LinkwitzRileyFilter<float>;
     //     fc0  fc1
     Filter LP1, AP2,
