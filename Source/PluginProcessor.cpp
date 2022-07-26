@@ -154,7 +154,7 @@ void SimpleMBCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
     spec.numChannels = getTotalNumOutputChannels();
     spec.sampleRate = sampleRate;
 
-    for (auto comp : compressors)
+    for (auto& comp : compressors)
         comp.prepare(spec);
 
     LP1.prepare(spec);
@@ -256,8 +256,7 @@ void SimpleMBCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     
     for (size_t i = 0; i < filterBuffers.size(); ++i)
     {
-        compressors[i].process(filterBuffers[i]);
-    }
+        compressors[i].process(filterBuffers[i]);    }
     
     auto numSamples = buffer.getNumSamples();
     auto numChannels = buffer.getNumChannels();
