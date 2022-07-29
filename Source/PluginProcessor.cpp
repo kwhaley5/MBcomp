@@ -49,6 +49,8 @@ SimpleMBCompAudioProcessor::SimpleMBCompAudioProcessor()
     floatHelper(lowBandComp.Threshold, names::Threshold_Low_Band);
     choiceHelper(lowBandComp.Ratio, names::Ratio_Low_Band);
     boolHelper(lowBandComp.Bypassed, names::Bypassed_Low_Band);
+    boolHelper(lowBandComp.Mute, names::Mute_Low_Band);
+    boolHelper(lowBandComp.Solo, names::Solo_Low_Band);
 
     //mid compressor
     floatHelper(midBandComp.Attack, names::Attack_Mid_Band);
@@ -56,6 +58,8 @@ SimpleMBCompAudioProcessor::SimpleMBCompAudioProcessor()
     floatHelper(midBandComp.Threshold, names::Threshold_Mid_Band);
     choiceHelper(midBandComp.Ratio, names::Ratio_Mid_Band);
     boolHelper(midBandComp.Bypassed, names::Bypassed_Mid_Band);
+    boolHelper(midBandComp.Mute, names::Mute_Mid_Band);
+    boolHelper(midBandComp.Solo, names::Solo_Mid_Band);
 
     //high end compressor
     floatHelper(highBandComp.Attack, names::Attack_High_Band);
@@ -63,6 +67,8 @@ SimpleMBCompAudioProcessor::SimpleMBCompAudioProcessor()
     floatHelper(highBandComp.Threshold, names::Threshold_High_Band);
     choiceHelper(highBandComp.Ratio, names::Ratio_High_Band);
     boolHelper(highBandComp.Bypassed, names::Bypassed_High_Band);
+    boolHelper(highBandComp.Mute, names::Mute_High_Band);
+    boolHelper(highBandComp.Solo, names::Solo_High_Band);
 
     //crossovers
     floatHelper(lowMidCrossover, names::Low_Mid_Crossover_Freq);
@@ -271,9 +277,43 @@ void SimpleMBCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         };
     };
 
-    addFilterBand(buffer, filterBuffers[0]);
-    addFilterBand(buffer, filterBuffers[1]);
-    addFilterBand(buffer, filterBuffers[2]);
+    auto bandsAreSoloed = false;
+    for (auto& comp : compressors)
+    {
+        if (comp.Solo->get())
+        {
+            bandsAreSoloed = true;
+            break;
+        }
+    }
+
+
+    //addFilterBand(buffer, filterBuffers[0]);
+    //addFilterBand(buffer, filterBuffers[1]);
+    //addFilterBand(buffer, filterBuffers[2]);
+
+    if (bandsAreSoloed)
+    {
+        for (size_t i = 0; i < compressors.size(); i++) 
+        {
+            auto& comp = compressors[i];
+            if (comp.Solo->get())
+            {
+                addFilterBand(buffer, filterBuffers[i]);
+            }
+        }
+    }
+    else 
+    {
+        for (size_t i = 0; i < compressors.size(); i++)
+        {
+            auto& comp = compressors[i];
+            if (! comp.Mute->get())
+            {
+                addFilterBand(buffer, filterBuffers[i]);
+            }
+        }
+    }
 }
 
 
@@ -351,6 +391,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
     layout.add(std::make_unique<AudioParameterBool>(params.at(names::Bypassed_Low_Band), params.at(names::Bypassed_Low_Band), false));
     layout.add(std::make_unique<AudioParameterBool>(params.at(names::Bypassed_Mid_Band), params.at(names::Bypassed_Mid_Band), false));
     layout.add(std::make_unique<AudioParameterBool>(params.at(names::Bypassed_High_Band), params.at(names::Bypassed_High_Band), false));
+
+    //Mute Parameters
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Mute_Low_Band), params.at(names::Mute_Low_Band), false));
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Mute_Mid_Band), params.at(names::Mute_Mid_Band), false));
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Mute_High_Band), params.at(names::Mute_High_Band), false));
+
+    //Solo Parameters
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Solo_Low_Band), params.at(names::Solo_Low_Band), false));
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Solo_Mid_Band), params.at(names::Solo_Low_Band), false));
+    layout.add(std::make_unique<AudioParameterBool>(params.at(names::Solo_High_Band), params.at(names::Solo_Low_Band), false));
 
     layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Low_Mid_Crossover_Freq), params.at(names::Low_Mid_Crossover_Freq), NormalisableRange<float>(20, 999, 1, 1), 400));
 
