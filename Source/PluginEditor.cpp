@@ -9,6 +9,23 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+juce::String getValString(const juce::RangedAudioParameter& param, bool getLow, juce::String suffix)
+{
+    juce::String str;
+
+    auto val = getLow ? param.getNormalisableRange().start : param.getNormalisableRange().end;
+
+    if (val > 999.f) {
+        val /= 1000.f;
+        str << val << " k" << suffix;
+    }
+    else {
+        str << val << suffix;
+    }
+    
+    return str;
+}
+
 void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider) {
     using namespace juce;
 
@@ -207,20 +224,35 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
     using namespace Params;
     const auto& params = GetParams();
 
+    auto getParamHelper = [&params, &apvts](const auto& name) -> auto&
+    {
+        return getParam(apvts, params, name);
+    };
+
+    inGainSlider = std::make_unique<RSWL>(getParamHelper(names::Gain_in), "dB");
+    lowMidXoverSlider = std::make_unique<RSWL>(getParamHelper(names::Low_Mid_Crossover_Freq), "Hz");
+    midHighXoverSlider = std::make_unique<RSWL>(getParamHelper(names::Mid_High_Crossover_Freq), "Hz");
+    outGainSlider = std::make_unique<RSWL>(getParamHelper(names::Gain_out), "dB");
+
     auto makeAttachmentHelper = [&params, &apvts](auto &attachment, const auto& name, auto& slider)
     {
         makeAttachment(attachment, apvts, params, name, slider);
     };
 
-    makeAttachmentHelper(inGainSliderAttachment, names::Gain_in, inGainSlider);
-    makeAttachmentHelper(lowMidXoverSliderAttachment, names::Low_Mid_Crossover_Freq, lowMidXoverSlider);
-    makeAttachmentHelper(midHighXoverSliderAttachment, names::Mid_High_Crossover_Freq, midHighXoverSlider);
-    makeAttachmentHelper(outGainSliderAttachment, names::Gain_out, outGainSlider);
+    makeAttachmentHelper(inGainSliderAttachment, names::Gain_in, *inGainSlider);
+    makeAttachmentHelper(lowMidXoverSliderAttachment, names::Low_Mid_Crossover_Freq, *lowMidXoverSlider);
+    makeAttachmentHelper(midHighXoverSliderAttachment, names::Mid_High_Crossover_Freq, *midHighXoverSlider);
+    makeAttachmentHelper(outGainSliderAttachment, names::Gain_out, *outGainSlider);
 
-    addAndMakeVisible(inGainSlider);
-    addAndMakeVisible(lowMidXoverSlider);
-    addAndMakeVisible(midHighXoverSlider);
-    addAndMakeVisible(outGainSlider);
+    addLabelPairs(inGainSlider->labels, getParamHelper(names::Gain_in), "dB");
+    addLabelPairs(lowMidXoverSlider->labels, getParamHelper(names::Low_Mid_Crossover_Freq), "Hz");
+    addLabelPairs(midHighXoverSlider->labels, getParamHelper(names::Mid_High_Crossover_Freq), "Hz");
+    addLabelPairs(outGainSlider->labels, getParamHelper(names::Gain_out), "dB");
+
+    addAndMakeVisible(*inGainSlider);
+    addAndMakeVisible(*lowMidXoverSlider);
+    addAndMakeVisible(*midHighXoverSlider);
+    addAndMakeVisible(*outGainSlider);
 }
 
 void GlobalControls::paint(juce::Graphics& g)
@@ -243,15 +275,23 @@ void GlobalControls::resized()
 {
     using namespace juce;
 
-    auto bounds = getLocalBounds();
+    auto bounds = getLocalBounds().reduced(5);
     FlexBox flexBox;
     flexBox.flexDirection = FlexBox::Direction::row;
     flexBox.flexWrap = FlexBox::Wrap::noWrap;
 
-    flexBox.items.add(FlexItem(inGainSlider).withFlex(1.f));
-    flexBox.items.add(FlexItem(lowMidXoverSlider).withFlex(1.f));
-    flexBox.items.add(FlexItem(midHighXoverSlider).withFlex(1.f));
-    flexBox.items.add(FlexItem(outGainSlider).withFlex(1.f));
+    auto spacer = FlexItem().withWidth(4);
+    auto endCap = FlexItem().withWidth(6);
+
+    flexBox.items.add(endCap);
+    flexBox.items.add(FlexItem(*inGainSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(*lowMidXoverSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(*midHighXoverSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(*outGainSlider).withFlex(1.f));
+    flexBox.items.add(endCap);
 
     flexBox.performLayout(bounds);
 }
