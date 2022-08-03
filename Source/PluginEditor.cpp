@@ -219,12 +219,125 @@ juce::String RotarySliderWithLabels::getDisplayString() const {
     return str;
 }
 
+void RotarySliderWithLabels::changeParam(juce::RangedAudioParameter* p)
+{
+    param = p;
+    repaint();
+}
+
+juce::String RatioSlider::getDisplayString() const
+{
+    auto choiceParam = dynamic_cast<juce::AudioParameterChoice*>(param);
+    jassert(choiceParam != nullptr);
+
+    auto currentChoice = choiceParam->getCurrentChoiceName();
+
+    if (currentChoice.contains(".0"))
+        currentChoice = currentChoice.substring(0, currentChoice.indexOf("."));
+
+    currentChoice << ":1";
+
+    return currentChoice;
+}
+
 //==============================================================================
 Placeholder::Placeholder()
 {
     juce::Random r;
     customColor = juce::Colour(r.nextInt(255), r.nextInt(255), r.nextInt(255));
 }
+
+CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv) : 
+    apvts(apv),
+    attackSlider(nullptr, "ms", "ATTACK"),
+    releaseSlider(nullptr, "ms", "RELEASE"),
+    thresholdSlider(nullptr, "dB", "THRESHOLD"),
+    ratioSlider(nullptr, "")
+
+{
+    using namespace Params;
+    const auto& params = GetParams();
+
+    auto getParamHelper = [&params, &apvts = this-> apvts](const auto& name) -> auto&
+    {
+        return getParam(apvts, params, name);
+    };
+
+    attackSlider.changeParam(&getParamHelper(names::Attack_Mid_Band));
+    releaseSlider.changeParam(&getParamHelper(names::Release_Mid_Band));
+    thresholdSlider.changeParam(&getParamHelper(names::Threshold_Mid_Band));
+    ratioSlider.changeParam(&getParamHelper(names::Ratio_Mid_Band));
+
+    addLabelPairs(attackSlider.labels, getParamHelper(names::Attack_Mid_Band), "ms");
+    addLabelPairs(releaseSlider.labels, getParamHelper(names::Release_Mid_Band), "ms");
+    addLabelPairs(thresholdSlider.labels, getParamHelper(names::Threshold_Mid_Band), "dB");
+
+    ratioSlider.labels.add({ 0.f, "1:1" });
+    auto ratioParam = dynamic_cast<juce::AudioParameterChoice*>(&getParamHelper(names::Ratio_Mid_Band));
+    ratioSlider.labels.add({ 1.f, juce::String(ratioParam->choices.getReference(ratioParam->choices.size() - 1).getIntValue()) + ":1"});
+
+    auto makeAttachmentHelper = [&params, &apvts = this->apvts](auto& attachment, const auto& name, auto& slider)
+    {
+        makeAttachment(attachment, apvts, params, name, slider);
+    };
+
+    makeAttachmentHelper(attackSliderAttachment, names::Attack_Mid_Band, attackSlider);
+    makeAttachmentHelper(releaseSliderAttachment, names::Release_Mid_Band, releaseSlider);
+    makeAttachmentHelper(thresholdSliderAttachment, names::Threshold_Mid_Band, thresholdSlider);
+    makeAttachmentHelper(ratioSliderAttachment, names::Ratio_Mid_Band, ratioSlider);
+
+    addAndMakeVisible(attackSlider);
+    addAndMakeVisible(releaseSlider);
+    addAndMakeVisible(thresholdSlider);
+    addAndMakeVisible(ratioSlider);
+}
+
+void CompressorBandControls::resized()
+{
+    using namespace juce;
+
+    auto bounds = getLocalBounds().reduced(5);
+    FlexBox flexBox;
+    flexBox.flexDirection = FlexBox::Direction::row;
+    flexBox.flexWrap = FlexBox::Wrap::noWrap;
+
+    auto spacer = FlexItem().withWidth(4);
+    auto endCap = FlexItem().withWidth(6);
+
+    flexBox.items.add(endCap);
+    flexBox.items.add(FlexItem(attackSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(releaseSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(thresholdSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(ratioSlider).withFlex(1.f));
+    flexBox.items.add(endCap);
+
+    flexBox.performLayout(bounds);
+}
+
+void drawModuleBackground(juce::Graphics& g, juce::Rectangle<int> bounds)
+{
+    using namespace juce;
+    g.setColour(Colours::blueviolet);
+    g.fillAll();
+
+    auto localBounds = bounds;
+
+    bounds.reduce(3, 3); //This creates a boarder
+    g.setColour(Colours::black);
+    g.fillRoundedRectangle(bounds.toFloat(), 3);
+
+    g.drawRect(localBounds);
+}
+
+void CompressorBandControls::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds();
+    drawModuleBackground(g, bounds);
+}
+
 
 GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
 {
@@ -241,10 +354,10 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
     auto& gainMidHighParam = getParamHelper(names::Mid_High_Crossover_Freq);
     auto& gainOutParam = getParamHelper(names::Gain_out);
 
-    inGainSlider = std::make_unique<RSWL>(gainInParam, "dB", "INPUT TRIM");
-    lowMidXoverSlider = std::make_unique<RSWL>(gainLowMidParam, "Hz", "LOW-MID X-OVER");
-    midHighXoverSlider = std::make_unique<RSWL>(gainMidHighParam, "Hz", "MID-HIGH X-OVER");
-    outGainSlider = std::make_unique<RSWL>(gainOutParam, "dB", "OUTPUT TRIM");
+    inGainSlider = std::make_unique<RSWL>(&gainInParam, "dB", "INPUT TRIM");
+    lowMidXoverSlider = std::make_unique<RSWL>(&gainLowMidParam, "Hz", "LOW-MID X-OVER");
+    midHighXoverSlider = std::make_unique<RSWL>(&gainMidHighParam, "Hz", "MID-HIGH X-OVER");
+    outGainSlider = std::make_unique<RSWL>(&gainOutParam, "dB", "OUTPUT TRIM");
 
     auto makeAttachmentHelper = [&params, &apvts](auto &attachment, const auto& name, auto& slider)
     {
@@ -269,18 +382,8 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
 
 void GlobalControls::paint(juce::Graphics& g)
 {
-    using namespace juce;
     auto bounds = getLocalBounds();
-    g.setColour(Colours::blueviolet);
-    g.fillAll();
-
-    auto localBounds = bounds;
-
-    bounds.reduce(3, 3); //This creates a boarder
-    g.setColour(Colours::black);
-    g.fillRoundedRectangle(bounds.toFloat(), 3);
-
-    g.drawRect(localBounds);
+    drawModuleBackground(g, bounds);
 }
 
 void GlobalControls::resized()
@@ -314,8 +417,9 @@ SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBComp
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    addAndMakeVisible(controlBar);
-    addAndMakeVisible(analyzer);
+    setLookAndFeel(&lnf);
+    //addAndMakeVisible(controlBar);
+    //addAndMakeVisible(analyzer);
     addAndMakeVisible(globalControls);
     addAndMakeVisible(bandControls);
 
@@ -324,6 +428,7 @@ SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBComp
 
 SimpleMBCompAudioProcessorEditor::~SimpleMBCompAudioProcessorEditor()
 {
+    setLookAndFeel(nullptr);
 }
 
 //==============================================================================
