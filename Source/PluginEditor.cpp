@@ -80,29 +80,46 @@ void LookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& toggle
 
     using namespace juce;
 
-    Path powerButton;
+    if (auto* pb = dynamic_cast<PowerButton*>(&toggleButton))
+    {
+        Path powerButton;
 
-    auto bounds = toggleButton.getLocalBounds();
-    auto size = jmin(bounds.getWidth(), bounds.getHeight()) - 6;
-    auto r = bounds.withSizeKeepingCentre(size, size).toFloat();
+        auto bounds = toggleButton.getLocalBounds();
+        auto size = jmin(bounds.getWidth(), bounds.getHeight()) - 6;
+        auto r = bounds.withSizeKeepingCentre(size, size).toFloat();
 
-    float ang = 30.f;
+        float ang = 30.f;
 
-    size -= 6;
+        size -= 6;
 
-    powerButton.addCentredArc(r.getCentreX(), r.getCentreY(), size * .5, size * .5, 0.f, degreesToRadians(ang), degreesToRadians(360 - ang), true);
+        powerButton.addCentredArc(r.getCentreX(), r.getCentreY(), size * .5, size * .5, 0.f, degreesToRadians(ang), degreesToRadians(360 - ang), true);
 
-    powerButton.startNewSubPath(r.getCentreX(), r.getY());
-    powerButton.lineTo(r.getCentre());
+        powerButton.startNewSubPath(r.getCentreX(), r.getY());
+        powerButton.lineTo(r.getCentre());
 
-    PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
+        PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
 
-    auto color = toggleButton.getToggleState() ? Colours::dimgrey : Colour(0u, 172u, 1u);
+        auto color = toggleButton.getToggleState() ? Colours::dimgrey : Colour(0u, 172u, 1u);
 
-    g.setColour(color);
-    g.strokePath(powerButton, pst);
-    g.drawEllipse(r, 2);
+        g.setColour(color);
+        g.strokePath(powerButton, pst);
+        g.drawEllipse(r, 2);
+    }
 
+    else
+    {
+        auto bounds = toggleButton.getLocalBounds().reduced(2);
+        auto buttonIsOn = toggleButton.getToggleState();
+        const int cornerSize = 4;
+        g.setColour(buttonIsOn ? juce::Colours::white : juce::Colours::black);
+        g.fillRoundedRectangle(bounds.toFloat(), cornerSize);
+
+        g.setColour(buttonIsOn ? juce::Colours::black : juce::Colours::white);
+        g.drawRoundedRectangle(bounds.toFloat(), cornerSize, 1);
+        g.drawFittedText(toggleButton.getName(), bounds, juce::Justification::centred, 1);
+
+    };
+    
 }
 
 void RotarySliderWithLabels::paint(juce::Graphics& g) {
@@ -247,7 +264,7 @@ Placeholder::Placeholder()
     customColor = juce::Colour(r.nextInt(255), r.nextInt(255), r.nextInt(255));
 }
 
-CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv) : 
+CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv) : //This will dynamically change, which is why it is initiated differenlty then the globabl controls. I think
     apvts(apv),
     attackSlider(nullptr, "ms", "ATTACK"),
     releaseSlider(nullptr, "ms", "RELEASE"),
@@ -290,13 +307,59 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
     addAndMakeVisible(releaseSlider);
     addAndMakeVisible(thresholdSlider);
     addAndMakeVisible(ratioSlider);
+
+    bypassButton.setName("X");
+    soloButton.setName("S");
+    muteButton.setName("M");
+
+    addAndMakeVisible(bypassButton);
+    addAndMakeVisible(soloButton);
+    addAndMakeVisible(muteButton);
+
+    makeAttachmentHelper(bypassButtonAttachment, names::Bypassed_Mid_Band, bypassButton);
+    makeAttachmentHelper(soloButtonAttachment, names::Solo_Mid_Band, soloButton);
+    makeAttachmentHelper(muteButtonAttachment, names::Mute_Mid_Band, muteButton);
+
+    lowBand.setName("Low");
+    midBand.setName("Mid");
+    highBand.setName("High");
+
+    lowBand.setRadioGroupId(1);
+    midBand.setRadioGroupId(1);
+    highBand.setRadioGroupId(1);
+
+    addAndMakeVisible(lowBand);
+    addAndMakeVisible(midBand);
+    addAndMakeVisible(highBand);
 }
 
 void CompressorBandControls::resized()
 {
     using namespace juce;
-
     auto bounds = getLocalBounds().reduced(5);
+
+    auto createBandButtonControlBox = [](std::vector<Component*> comps)
+    {
+        FlexBox flexBox;
+        flexBox.flexDirection = FlexBox::Direction::column;
+        flexBox.flexWrap = FlexBox::Wrap::noWrap;
+
+        auto spacer = FlexItem().withHeight(2);
+
+        for (auto* comp : comps)
+        {
+            flexBox.items.add(spacer);
+            flexBox.items.add(FlexItem(*comp).withFlex(1.f));
+        }
+
+        flexBox.items.add(spacer);
+
+        return flexBox;
+    };
+
+    auto bandButtonControBox = createBandButtonControlBox({ &bypassButton, &soloButton, &muteButton });
+    auto bandSelectControlBox = createBandButtonControlBox({ &lowBand, &midBand, &highBand });
+
     FlexBox flexBox;
     flexBox.flexDirection = FlexBox::Direction::row;
     flexBox.flexWrap = FlexBox::Wrap::noWrap;
@@ -304,7 +367,9 @@ void CompressorBandControls::resized()
     auto spacer = FlexItem().withWidth(4);
     auto endCap = FlexItem().withWidth(6);
 
-    flexBox.items.add(endCap);
+    flexBox.items.add(spacer);
+    //flexBox.items.add(endCap);
+    flexBox.items.add(FlexItem(bandSelectControlBox).withWidth(50));
     flexBox.items.add(FlexItem(attackSlider).withFlex(1.f));
     flexBox.items.add(spacer);
     flexBox.items.add(FlexItem(releaseSlider).withFlex(1.f));
@@ -312,7 +377,9 @@ void CompressorBandControls::resized()
     flexBox.items.add(FlexItem(thresholdSlider).withFlex(1.f));
     flexBox.items.add(spacer);
     flexBox.items.add(FlexItem(ratioSlider).withFlex(1.f));
-    flexBox.items.add(endCap);
+    flexBox.items.add(spacer);
+    flexBox.items.add(FlexItem(bandButtonControBox).withWidth(30));
+    //flexBox.items.add(endCap);
 
     flexBox.performLayout(bounds);
 }

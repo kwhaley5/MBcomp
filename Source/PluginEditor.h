@@ -27,6 +27,8 @@ struct LookAndFeel : juce::LookAndFeel_V4 {
 
 };
 
+struct PowerButton : juce::ToggleButton {};
+
 struct RotarySliderWithLabels : juce::Slider {
     RotarySliderWithLabels(juce::RangedAudioParameter* rap, const juce::String& unitSuffix, const juce::String title) :
         juce::Slider(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag, juce::Slider::TextEntryBoxPosition::NoTextBox),
@@ -152,6 +154,14 @@ private:
                                 releaseSliderAttachment,
                                 thresholdSliderAttachment,
                                 ratioSliderAttachment;
+
+    juce::ToggleButton bypassButton, soloButton, muteButton, lowBand, midBand, highBand;
+
+    using BtnAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    std::unique_ptr<BtnAttachment> bypassButtonAttachment,
+                                   soloButtonAttachment,
+                                   muteButtonAttachment;
+        
 };
 
 struct GlobalControls : juce::Component
