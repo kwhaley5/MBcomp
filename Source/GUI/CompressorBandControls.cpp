@@ -10,7 +10,7 @@
 
 #include "CompressorBandControls.h"
 #include "Utilities.h"
-#include "Params.h"
+#include "../DSP/Params.h"
 #include "LookAndFeel.h"
 
 CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv) : //This will dynamically change, which is why it is initiated differenlty then the globabl controls. I think
@@ -33,16 +33,32 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
 
 
     bypassButton.setName("X");
+    bypassButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::yellow);
+    bypassButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
+
     soloButton.setName("S");
+    soloButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::green);
+    soloButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
+
     muteButton.setName("M");
+    muteButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::red);
+    muteButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
 
     addAndMakeVisible(bypassButton);
     addAndMakeVisible(soloButton);
     addAndMakeVisible(muteButton);
 
     lowBand.setName("Low");
+    lowBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    lowBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
+
     midBand.setName("Mid");
+    midBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    midBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
+
     highBand.setName("High");
+    highBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    highBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
 
     lowBand.setRadioGroupId(1);
     midBand.setRadioGroupId(1);
@@ -63,6 +79,8 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
     lowBand.setToggleState(true, juce::NotificationType::dontSendNotification);
 
     updateAttachments();
+    updateSliderEnablements();
+    updateBandSelectButtonStates();
 
     addAndMakeVisible(lowBand);
     addAndMakeVisible(midBand);
@@ -137,6 +155,33 @@ void CompressorBandControls::buttonClicked(juce::Button* button)
 {
     updateSliderEnablements();
     updateSoloMuteBypassToggleStates(*button);
+    updateActiveBandFillColour(*button);
+}
+
+void CompressorBandControls::updateActiveBandFillColour(juce::Button& clickedButton)
+{
+    if (clickedButton.getToggleState() == false)
+    {
+        resetActiveBandColours();
+    }
+    else
+    {
+        refreshBandButtonColors(*activeBand, clickedButton);
+    }
+}
+
+void CompressorBandControls::resetActiveBandColours()
+{
+    activeBand->setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    activeBand->setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
+    activeBand->repaint();
+}
+
+void CompressorBandControls::refreshBandButtonColors(juce::Button &band, juce::Button &colourSource)
+{
+    band.setColour(juce::TextButton::ColourIds::buttonOnColourId, colourSource.findColour(juce::TextButton::ColourIds::buttonOnColourId));
+    band.setColour(juce::TextButton::ColourIds::buttonColourId, colourSource.findColour(juce::TextButton::ColourIds::buttonOnColourId));
+    band.repaint();
 }
 
 void CompressorBandControls::updateSliderEnablements()
@@ -147,6 +192,46 @@ void CompressorBandControls::updateSliderEnablements()
     releaseSlider.setEnabled(!disabled);
     ratioSlider.setEnabled(!disabled);
     thresholdSlider.setEnabled(!disabled);
+}
+
+void CompressorBandControls::updateBandSelectButtonStates()
+{
+    using namespace Params;
+    std::vector<std::array<names, 3>> paramsToCheck
+    {
+        {names::Solo_Low_Band, names::Mute_Low_Band, names::Bypassed_Low_Band},
+        {names::Solo_Mid_Band, names::Mute_Mid_Band, names::Bypassed_Mid_Band},
+        {names::Solo_High_Band, names::Mute_High_Band, names::Bypassed_High_Band}
+    };
+
+    const auto& params = GetParams();
+    auto paramHelper = [&params, this](const auto& name)
+    {
+        return dynamic_cast<juce::AudioParameterBool*>(&getParam(apvts, params, name));
+    };
+
+    for (size_t i = 0; i < paramsToCheck.size(); i++)
+    {
+        auto& list = paramsToCheck[i];
+
+        auto* bandButton = (i == 0) ? &lowBand : (i == 1) ? &midBand : &highBand;
+
+        if (auto* solo = paramHelper(list[0]);
+            solo->get())
+        {
+            refreshBandButtonColors(*bandButton, soloButton);
+        }
+        else if (auto* mute = paramHelper(list[1]);
+            mute->get())
+        {
+            refreshBandButtonColors(*bandButton, muteButton);
+        }
+        else if (auto* bypass = paramHelper(list[2]);
+            bypass->get())
+        {
+            refreshBandButtonColors(*bandButton, bypassButton);
+        }
+    }
 }
 
 void CompressorBandControls::updateSoloMuteBypassToggleStates(juce::Button& clickedButton)
@@ -192,53 +277,57 @@ void CompressorBandControls::updateAttachments()
 
     switch (bandType)
     {
-    case Low:
-    {
-        Names = std::vector<names>
+        case Low:
         {
-            names::Attack_Low_Band,
-            names::Bypassed_Low_Band,
-            names::Mute_Low_Band,
-            names::Ratio_Low_Band,
-            names::Release_Low_Band,
-            names::Solo_Low_Band,
-            names::Threshold_Low_Band
-        };
+            Names = std::vector<names>
+            {
+                names::Attack_Low_Band,
+                names::Bypassed_Low_Band,
+                names::Mute_Low_Band,
+                names::Ratio_Low_Band,
+                names::Release_Low_Band,
+                names::Solo_Low_Band,
+                names::Threshold_Low_Band
+            };
+            activeBand = &lowBand;
 
-        break;
-    }
+            break;
+        }
 
-    case Mid:
-    {
-        Names = std::vector<names>
+        case Mid:
         {
-            names::Attack_Mid_Band,
-            names::Bypassed_Mid_Band,
-            names::Mute_Mid_Band,
-            names::Ratio_Mid_Band,
-            names::Release_Mid_Band,
-            names::Solo_Mid_Band,
-            names::Threshold_Mid_Band
-        };
-    }
+            Names = std::vector<names>
+            {
+                names::Attack_Mid_Band,
+                names::Bypassed_Mid_Band,
+                names::Mute_Mid_Band,
+                names::Ratio_Mid_Band,
+                names::Release_Mid_Band,
+                names::Solo_Mid_Band,
+                names::Threshold_Mid_Band
+            };
+            activeBand = &midBand;
 
-    break;
+            break;
+        }
 
-    case High:
-    {
-        Names = std::vector<names>
+        case High:
         {
-            names::Attack_High_Band,
-            names::Bypassed_High_Band,
-            names::Mute_High_Band,
-            names::Ratio_High_Band,
-            names::Release_High_Band,
-            names::Solo_High_Band,
-            names::Threshold_High_Band
-        };
-    }
+            Names = std::vector<names>
+            {
+                names::Attack_High_Band,
+                names::Bypassed_High_Band,
+                names::Mute_High_Band,
+                names::Ratio_High_Band,
+                names::Release_High_Band,
+                names::Solo_High_Band,
+                names::Threshold_High_Band
+            };
+            activeBand = &highBand;
 
-    break;
+            break;
+        }
+
     }
 
     enum Pos //I think a good thing to do is figure out the difference between an enum and a template. Seems like enums are good for map type things
