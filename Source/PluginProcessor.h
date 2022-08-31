@@ -10,119 +10,140 @@
 
 #include <JuceHeader.h>
 #include "DSP/CompressorBand.h"
+#include <array>
 
+template<typename T>
+struct Fifo
+{
+    void prepare(int numChannels, int numSamples)
+    {
+        static_assert(std::is_same_v<T, juce::AudioBuffer<float>>,
+            "prepare(numChannels, numSamples) should only be used when the Fifo is holding juce::AudioBuffer<float>");
+        for (auto& buffer : buffers)
+        {
+            buffer.setSize(numChannels,
+                numSamples,
+                false,   //clear everything?
+                true,    //including the extra space?
+                true);   //avoid reallocating if you can?
+            buffer.clear();
+        }
+    }
 
-//namespace Params
-//{
-//    enum names
-//    {
-//        //Crossover parameters
-//        Low_Mid_Crossover_Freq,
-//        Mid_High_Crossover_Freq,
-//
-//        //Controls for all bands
-//        Threshold_Low_Band,
-//        Threshold_Mid_Band,
-//        Threshold_High_Band,
-//
-//        Attack_Low_Band,
-//        Attack_Mid_Band,
-//        Attack_High_Band,
-//
-//        Release_Low_Band,
-//        Release_Mid_Band,
-//        Release_High_Band,
-//
-//        Ratio_Low_Band,
-//        Ratio_Mid_Band,
-//        Ratio_High_Band,
-//
-//        Bypassed_Low_Band,
-//        Bypassed_Mid_Band,
-//        Bypassed_High_Band,
-//
-//        Mute_Low_Band,
-//        Mute_Mid_Band,
-//        Mute_High_Band,
-//
-//        Solo_Low_Band,
-//        Solo_Mid_Band,
-//        Solo_High_Band,
-//
-//        Gain_in,
-//        Gain_out
-//    };
-//
-//    inline const std::map <names, juce::String>& GetParams()
-//    {
-//        static std::map<names, juce::String> params = 
-//        {
-//            {Low_Mid_Crossover_Freq, "Low-Mid Crossover Frequency"},
-//            {Mid_High_Crossover_Freq, "Mid-High Crossover Frequency"},
-//            {Threshold_Low_Band, "Threshold Low Band"},
-//            {Threshold_Mid_Band, "Threshold Mid Band"},
-//            {Threshold_High_Band, "Threshold High Band"},
-//            {Attack_Low_Band, "Attack Low Band"},
-//            {Attack_Mid_Band, "Attack Mid Band"},
-//            {Attack_High_Band, "Attack High Band"},
-//            {Release_Low_Band, "Release Low Band"},
-//            {Release_Mid_Band, "Release Mid Band"},
-//            {Release_High_Band, "Release High Band"},
-//            {Ratio_Low_Band, "Ratio Low Band"},
-//            {Ratio_Mid_Band, "Ratio Mid Band"},
-//            {Ratio_High_Band, "Ratio High Band"},
-//            {Bypassed_Low_Band, "Bypassed Low Band"},
-//            {Bypassed_Mid_Band, "Bypassed Mid Band"},
-//            {Bypassed_High_Band, "Bypassed High Band"},
-//            {Mute_Low_Band, "Mute Low Band"},
-//            {Mute_Mid_Band, "Mute Mid Band"},
-//            {Mute_High_Band, "Mute High Band"},
-//            {Solo_Low_Band, "Solo Low Band"},
-//            {Solo_Mid_Band, "Solo Mid Band"},
-//            {Solo_High_Band, "Solo High Band"},
-//            {Gain_in, "Gain In"},
-//            {Gain_out, "Gain Out"}
-//        };
-//
-//        return params;
-//    }
-//}
+    void prepare(size_t numElements)
+    {
+        static_assert(std::is_same_v<T, std::vector<float>>,
+            "prepare(numElements) should only be used when the Fifo is holding std::vector<float>");
+        for (auto& buffer : buffers)
+        {
+            buffer.clear();
+            buffer.resize(numElements, 0);
+        }
+    }
 
-//struct CompressorBand
-//{
-//    juce::AudioParameterFloat* Attack{ nullptr };
-//    juce::AudioParameterFloat* Release{ nullptr };
-//    juce::AudioParameterFloat* Threshold{ nullptr };
-//    juce::AudioParameterChoice* Ratio{ nullptr };
-//    juce::AudioParameterBool* Bypassed{ nullptr };
-//    juce::AudioParameterBool* Mute{ nullptr };
-//    juce::AudioParameterBool* Solo{ nullptr };
-//
-//    void prepare(const juce::dsp::ProcessSpec& spec)
-//    {
-//        compressor.prepare(spec);
-//    }
-//
-//    void updateCompressorSettings()
-//    {
-//        compressor.setAttack(Attack->get());
-//        compressor.setRelease(Release->get());
-//        compressor.setThreshold(Threshold->get());
-//        compressor.setRatio(Ratio->getCurrentChoiceName().getFloatValue());
-//    }
-//
-//    void process(juce::AudioBuffer<float>& buffer)
-//    {
-//        auto block = juce::dsp::AudioBlock<float>(buffer);
-//        auto context = juce::dsp::ProcessContextReplacing<float>(block);
-//
-//        context.isBypassed = Bypassed->get();
-//
-//        compressor.process(context);
-//    }
-//private:
-//    juce::dsp::Compressor<float> compressor;
-//};
+    bool push(const T& t)
+    {
+        auto write = fifo.write(1);
+        if (write.blockSize1 > 0)
+        {
+            buffers[write.startIndex1] = t;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool pull(T& t)
+    {
+        auto read = fifo.read(1);
+        if (read.blockSize1 > 0)
+        {
+            t = buffers[read.startIndex1];
+            return true;
+        }
+
+        return false;
+    }
+
+    int getNumAvailableForReading() const
+    {
+        return fifo.getNumReady();
+    }
+private:
+    static constexpr int Capacity = 30;
+    std::array<T, Capacity> buffers;
+    juce::AbstractFifo fifo{ Capacity };
+};
+
+enum Channel
+{
+    Right, //effectively 0
+    Left //effectively 1
+};
+
+template<typename BlockType>
+struct SingleChannelSampleFifo
+{
+    SingleChannelSampleFifo(Channel ch) : channelToUse(ch)
+    {
+        prepared.set(false);
+    }
+
+    void update(const BlockType& buffer)
+    {
+        jassert(prepared.get());
+        jassert(buffer.getNumChannels() > channelToUse);
+        auto* channelPtr = buffer.getReadPointer(channelToUse);
+
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            pushNextSampleIntoFifo(channelPtr[i]);
+        }
+    }
+
+    void prepare(int bufferSize)
+    {
+        prepared.set(false);
+        size.set(bufferSize);
+
+        bufferToFill.setSize(1,             //channel
+            bufferSize,    //num samples
+            false,         //keepExistingContent
+            true,          //clear extra space
+            true);         //avoid reallocating
+        audioBufferFifo.prepare(1, bufferSize);
+        fifoIndex = 0;
+        prepared.set(true);
+    }
+    //==============================================================================
+    int getNumCompleteBuffersAvailable() const { return audioBufferFifo.getNumAvailableForReading(); }
+    bool isPrepared() const { return prepared.get(); }
+    int getSize() const { return size.get(); }
+    //==============================================================================
+    bool getAudioBuffer(BlockType& buf) { return audioBufferFifo.pull(buf); }
+private:
+    Channel channelToUse;
+    int fifoIndex = 0;
+    Fifo<BlockType> audioBufferFifo;
+    BlockType bufferToFill;
+    juce::Atomic<bool> prepared = false;
+    juce::Atomic<int> size = 0;
+
+    void pushNextSampleIntoFifo(float sample)
+    {
+        if (fifoIndex == bufferToFill.getNumSamples())
+        {
+            auto ok = audioBufferFifo.push(bufferToFill);
+
+            juce::ignoreUnused(ok);
+
+            fifoIndex = 0;
+        }
+
+        bufferToFill.setSample(0, fifoIndex, sample);
+        ++fifoIndex;
+    }
+};
 
 //==============================================================================
 /**
@@ -174,6 +195,10 @@ public:
     static APVTS::ParameterLayout createParameterLayout();
 
     APVTS apvts{ *this, nullptr, "Parameters", createParameterLayout() };
+
+    using BlockType = juce::AudioBuffer<float>;
+    SingleChannelSampleFifo<BlockType> leftChannelFifo{ Channel::Left };
+    SingleChannelSampleFifo<BlockType> rightChannelFifo{ Channel::Right };
 private:
     
     std::array<CompressorBand, 3> compressors;

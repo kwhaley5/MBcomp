@@ -9,635 +9,302 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-//juce::String getValString(const juce::RangedAudioParameter& param, bool getLow, juce::String suffix)
-//{
-//    juce::String str;
-//
-//    auto val = getLow ? param.getNormalisableRange().start : param.getNormalisableRange().end;
-//
-//    if (val > 999.f) {
-//        val /= 1000.f;
-//        str << val << " k" << suffix;
-//    }
-//    else {
-//        str << val << suffix;
-//    }
-//    
-//    return str;
-//}
+SpectrumAnalyzer::SpectrumAnalyzer(SimpleMBCompAudioProcessor& p) :
+    audioProcessor(p),
+    leftPathProducer(audioProcessor.leftChannelFifo),
+    rightPathProducer(audioProcessor.rightChannelFifo)
+{
+    const auto& params = audioProcessor.getParameters();
+    for (auto param : params)
+    {
+        param->addListener(this);
+    }
 
-//void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider) {
-//    using namespace juce;
-//
-//    auto bounds = Rectangle<float>(x, y, width, height);
-//
-//    auto enabled = slider.isEnabled();
-//
-//    g.setColour(enabled ? Colour(97u, 18u, 167u) : Colours::darkgrey);
-//    g.fillEllipse(bounds);
-//
-//    g.setColour(enabled ? Colour(255u, 154u, 1u) : Colours::grey);
-//    g.drawEllipse(bounds, 1.f);
-//
-//    if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider)) {
-//        auto  center = bounds.getCentre();
-//
-//        Path p;
-//
-//        Rectangle <float> r;
-//        r.setLeft(center.getX() - 2);
-//        r.setRight(center.getX() + 2);
-//        r.setTop(bounds.getY());
-//        r.setBottom(center.getY() - rswl->getTextHeight() * 1.5);
-//
-//        p.addRoundedRectangle(r, 2.f);
-//
-//        jassert(rotaryStartAngle < rotaryEndAngle);
-//
-//        auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
-//
-//        p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
-//
-//        g.fillPath(p);
-//
-//        g.setFont(rswl->getTextHeight());
-//        auto text = rswl->getDisplayString();
-//        auto strWidth = g.getCurrentFont().getStringWidth(text);
-//
-//        r.setSize(strWidth + 4, rswl->getTextHeight() + 2);
-//        r.setCentre(center);
-//
-//        g.setColour(enabled ? Colours::black : Colours::darkgrey);
-//        g.fillRect(r);
-//
-//        g.setColour(enabled ? Colours::white : Colours::lightgrey);
-//        g.drawFittedText(text, r.toNearestInt(), juce::Justification::centred, 1);
-//    };
-//
-//}
-//
-//void LookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& toggleButton, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) {
-//
-//    using namespace juce;
-//
-//    if (auto* pb = dynamic_cast<PowerButton*>(&toggleButton))
-//    {
-//        Path powerButton;
-//
-//        auto bounds = toggleButton.getLocalBounds();
-//        auto size = jmin(bounds.getWidth(), bounds.getHeight()) - 6;
-//        auto r = bounds.withSizeKeepingCentre(size, size).toFloat();
-//
-//        float ang = 30.f;
-//
-//        size -= 6;
-//
-//        powerButton.addCentredArc(r.getCentreX(), r.getCentreY(), size * .5, size * .5, 0.f, degreesToRadians(ang), degreesToRadians(360 - ang), true);
-//
-//        powerButton.startNewSubPath(r.getCentreX(), r.getY());
-//        powerButton.lineTo(r.getCentre());
-//
-//        PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
-//
-//        auto color = toggleButton.getToggleState() ? Colours::dimgrey : Colour(0u, 172u, 1u);
-//
-//        g.setColour(color);
-//        g.strokePath(powerButton, pst);
-//        g.drawEllipse(r, 2);
-//    }
-//
-//    else
-//    {
-//        auto bounds = toggleButton.getLocalBounds().reduced(2);
-//        auto buttonIsOn = toggleButton.getToggleState();
-//        const int cornerSize = 4;
-//        g.setColour(buttonIsOn ? juce::Colours::white : juce::Colours::black);
-//        g.fillRoundedRectangle(bounds.toFloat(), cornerSize);
-//
-//        g.setColour(buttonIsOn ? juce::Colours::black : juce::Colours::white);
-//        g.drawRoundedRectangle(bounds.toFloat(), cornerSize, 1);
-//        g.drawFittedText(toggleButton.getName(), bounds, juce::Justification::centred, 1);
-//
-//    };
-//    
-//}
+    startTimerHz(60);
+}
 
-//void RotarySliderWithLabels::paint(juce::Graphics& g) {
-//    using namespace juce;
-//
-//    auto startAng = degreesToRadians(180.f + 45.f);
-//    auto endAng = degreesToRadians(180.f - 45.f) + MathConstants<float>::twoPi;
-//
-//    auto range = getRange();
-//
-//    auto sliderBounds = getSliderBounds();
-//
-//    auto bounds = getLocalBounds();
-//    g.setColour(Colours::blueviolet);
-//    g.drawFittedText(getName(), bounds.removeFromTop(getTextBoxHeight() - 3), Justification::centredBottom, 1); 
-//
-//    //g.setColour(Colours::red);
-//    //g.drawRect(getLocalBounds());
-//    //g.setColour(Colours::yellow);
-//    //g.drawRect(sliderBounds);
-//
-//    getLookAndFeel().drawRotarySlider(g,
-//        sliderBounds.getX(),
-//        sliderBounds.getY(),
-//        sliderBounds.getWidth(),
-//        sliderBounds.getHeight(),
-//        jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0),
-//        startAng,
-//        endAng,
-//        *this);
-//
-//    auto center = sliderBounds.toFloat().getCentre();
-//    auto radius = sliderBounds.getWidth() * .5f;
-//
-//    g.setColour(Colour(0u, 172u, 1u));
-//    g.setFont(15);
-//
-//    auto numChoices = labels.size();
-//
-//    //labels for rotarty
-//    for (int i = 0; i < numChoices; i++) {
-//
-//        auto pos = labels[i].pos;
-//        //jassert(0.f <= pos);
-//        //jassert(pos = 1.f);
-//
-//        auto ang = jmap(pos, 0.f, 1.f, startAng, endAng);
-//
-//        auto c = center.getPointOnCircumference(radius + getTextHeight() * .5f + 1, ang);
-//
-//        Rectangle<float> r;
-//        auto str = labels[i].label;
-//        r.setSize(g.getCurrentFont().getStringWidth(str), getTextHeight());
-//        r.setCentre(c);
-//        r.setY(r.getY() + getTextHeight());
-//
-//        g.drawFittedText(str, r.toNearestInt(), juce::Justification::centred, 1);
-//    }
-//}
-//
-//juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const {
-//
-//    auto bounds = getLocalBounds();
-//
-//    bounds.removeFromTop(getTextHeight() * 1.5);
-//
-//    auto size = juce::jmin(bounds.getWidth(), bounds.getHeight());
-//
-//    size -= getTextBoxHeight() * 1;
-//
-//    juce::Rectangle<int> r;
-//    r.setSize(size, size);
-//    r.setCentre(bounds.getCentreX(), 0);
-//    //r.setY(2);
-//    r.setY(bounds.getY());
-//
-//    return r;
-//}
-//
-//juce::String RotarySliderWithLabels::getDisplayString() const {
-//
-//    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(param))
-//        return choiceParam->getCurrentChoiceName();
-//
-//    juce::String str;
-//    bool addk = false;
-//
-//    if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(param)) {
-//
-//        float val = getValue();
-//
-//        if (val > 999) {
-//            val /= 1000.f;
-//            addk = true;
-//        }
-//
-//        str = juce::String(val, (addk ? 2 : 0));
-//
-//    }
-//    else {
-//
-//        jassertfalse; //this shouldn't happen!
-//    }
-//
-//    if (suffix.isNotEmpty()) {
-//
-//        str << " ";
-//        if (addk)
-//            str << "k";
-//
-//        str << suffix;
-//    }
-//
-//    return str;
-//}
-//
-//void RotarySliderWithLabels::changeParam(juce::RangedAudioParameter* p)
-//{
-//    param = p;
-//    repaint();
-//}
-//
-//juce::String RatioSlider::getDisplayString() const
-//{
-//    auto choiceParam = dynamic_cast<juce::AudioParameterChoice*>(param);
-//    jassert(choiceParam != nullptr);
-//
-//    auto currentChoice = choiceParam->getCurrentChoiceName();
-//
-//    if (currentChoice.contains(".0"))
-//        currentChoice = currentChoice.substring(0, currentChoice.indexOf("."));
-//
-//    currentChoice << ":1";
-//
-//    return currentChoice;
-//}
+SpectrumAnalyzer::~SpectrumAnalyzer()
+{
+    const auto& params = audioProcessor.getParameters();
+    for (auto param : params)
+    {
+        param->removeListener(this);
+    }
+}
 
-//==============================================================================
-//Placeholder::Placeholder()
-//{
-//    juce::Random r;
-//    customColor = juce::Colour(r.nextInt(255), r.nextInt(255), r.nextInt(255));
-//}
+void SpectrumAnalyzer::paint(juce::Graphics& g)
+{
+    using namespace juce;
+    // (Our component is opaque, so we must completely fill the background with a solid colour)
+    g.fillAll(Colours::black);
 
-//CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv) : //This will dynamically change, which is why it is initiated differenlty then the globabl controls. I think
-//    apvts(apv),
-//    attackSlider(nullptr, "ms", "ATTACK"),
-//    releaseSlider(nullptr, "ms", "RELEASE"),
-//    thresholdSlider(nullptr, "dB", "THRESHOLD"),
-//    ratioSlider(nullptr, "")
-//
-//{
-//
-//    addAndMakeVisible(attackSlider);
-//    addAndMakeVisible(releaseSlider);
-//    addAndMakeVisible(thresholdSlider);
-//    addAndMakeVisible(ratioSlider);
-//
-//    bypassButton.addListener(this);
-//    soloButton.addListener(this);
-//    muteButton.addListener(this);
-//
-//
-//    bypassButton.setName("X");
-//    soloButton.setName("S");
-//    muteButton.setName("M");
-//
-//    addAndMakeVisible(bypassButton);
-//    addAndMakeVisible(soloButton);
-//    addAndMakeVisible(muteButton);
-//
-//    lowBand.setName("Low");
-//    midBand.setName("Mid");
-//    highBand.setName("High");
-//
-//    lowBand.setRadioGroupId(1);
-//    midBand.setRadioGroupId(1);
-//    highBand.setRadioGroupId(1);
-//
-//    auto buttonSwitcher = [safePtr = this->safePtr]()
-//    {
-//        if (auto* c = safePtr.getComponent())
-//        {
-//            c->updateAttachments();
-//        }
-//    };
-//
-//    lowBand.onClick = buttonSwitcher;
-//    midBand.onClick = buttonSwitcher;
-//    highBand.onClick = buttonSwitcher;
-//
-//    lowBand.setToggleState(true, juce::NotificationType::dontSendNotification);
-//
-//    updateAttachments();
-//
-//    addAndMakeVisible(lowBand);
-//    addAndMakeVisible(midBand);
-//    addAndMakeVisible(highBand);
-//}
+    drawBackgroundGrid(g);
 
-//CompressorBandControls::~CompressorBandControls()
-//{
-//    bypassButton.removeListener(this);
-//    soloButton.removeListener(this);
-//    muteButton.removeListener(this);
-//}
-//
-//void CompressorBandControls::resized()
-//{
-//    using namespace juce;
-//    auto bounds = getLocalBounds().reduced(5);
-//
-//    auto createBandButtonControlBox = [](std::vector<Component*> comps)
-//    {
-//        FlexBox flexBox;
-//        flexBox.flexDirection = FlexBox::Direction::column;
-//        flexBox.flexWrap = FlexBox::Wrap::noWrap;
-//
-//        auto spacer = FlexItem().withHeight(2);
-//
-//        for (auto* comp : comps)
-//        {
-//            flexBox.items.add(spacer);
-//            flexBox.items.add(FlexItem(*comp).withFlex(1.f));
-//        }
-//
-//        flexBox.items.add(spacer);
-//
-//        return flexBox;
-//    };
-//
-//    auto bandButtonControBox = createBandButtonControlBox({ &bypassButton, &soloButton, &muteButton });
-//    auto bandSelectControlBox = createBandButtonControlBox({ &lowBand, &midBand, &highBand });
-//
-//    FlexBox flexBox;
-//    flexBox.flexDirection = FlexBox::Direction::row;
-//    flexBox.flexWrap = FlexBox::Wrap::noWrap;
-//
-//    auto spacer = FlexItem().withWidth(4);
-//    auto endCap = FlexItem().withWidth(6);
-//
-//    flexBox.items.add(spacer);
-//    //flexBox.items.add(endCap);
-//    flexBox.items.add(FlexItem(bandSelectControlBox).withWidth(50));
-//    flexBox.items.add(FlexItem(attackSlider).withFlex(1.f));
-//    flexBox.items.add(spacer);
-//    flexBox.items.add(FlexItem(releaseSlider).withFlex(1.f));
-//    flexBox.items.add(spacer);
-//    flexBox.items.add(FlexItem(thresholdSlider).withFlex(1.f));
-//    flexBox.items.add(spacer);
-//    flexBox.items.add(FlexItem(ratioSlider).withFlex(1.f));
-//    flexBox.items.add(spacer);
-//    flexBox.items.add(FlexItem(bandButtonControBox).withWidth(30));
-//    //flexBox.items.add(endCap);
-//
-//    flexBox.performLayout(bounds);
-//}
+    auto responseArea = getAnalysisArea();
 
-//void drawModuleBackground(juce::Graphics& g, juce::Rectangle<int> bounds)
-//{
-//    using namespace juce;
-//    g.setColour(Colours::blueviolet);
-//    g.fillAll();
-//
-//    auto localBounds = bounds;
-//
-//    bounds.reduce(3, 3); //This creates a boarder
-//    g.setColour(Colours::black);
-//    g.fillRoundedRectangle(bounds.toFloat(), 3);
-//
-//    g.drawRect(localBounds);
-//}
+    if (shouldShowFFTAnalysis)
+    {
+        auto leftChannelFFTPath = leftPathProducer.getPath();
+        leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
 
-//void CompressorBandControls::paint(juce::Graphics& g)
-//{
-//    auto bounds = getLocalBounds();
-//    drawModuleBackground(g, bounds);
-//}
-//
-//void CompressorBandControls::buttonClicked(juce::Button* button)
-//{
-//    updateSliderEnablements();
-//    updateSoloMuteBypassToggleStates(*button);
-//}
-//
-//void CompressorBandControls::updateSliderEnablements() 
-//{
-//    auto disabled = muteButton.getToggleState() || bypassButton.getToggleState();
-//
-//    attackSlider.setEnabled(!disabled);
-//    releaseSlider.setEnabled(!disabled);
-//    ratioSlider.setEnabled(!disabled);
-//    thresholdSlider.setEnabled(!disabled);
-//}
-//
-//void CompressorBandControls::updateSoloMuteBypassToggleStates(juce::Button& clickedButton)
-//{
-//    if (&clickedButton == &soloButton && soloButton.getToggleState())
-//    {
-//        bypassButton.setToggleState(false, juce::NotificationType::sendNotification);
-//        muteButton.setToggleState(false, juce::NotificationType::sendNotification);
-//    }
-//    else if (&clickedButton == &bypassButton && bypassButton.getToggleState())
-//    {
-//        soloButton.setToggleState(false, juce::NotificationType::sendNotification);
-//        muteButton.setToggleState(false, juce::NotificationType::sendNotification);
-//    }
-//    else if (&clickedButton == &muteButton && muteButton.getToggleState())
-//    {
-//        soloButton.setToggleState(false, juce::NotificationType::sendNotification);
-//        bypassButton.setToggleState(false, juce::NotificationType::sendNotification);
-//    }
-//}
-//
-//void CompressorBandControls::updateAttachments()
-//{
-//    enum BandType
-//    {
-//        Low,
-//        Mid,
-//        High
-//    };
-//
-//    BandType bandType = [this]()
-//    {
-//        if (lowBand.getToggleState())
-//            return BandType::Low;
-//        if (midBand.getToggleState())
-//            return BandType::Mid;
-//
-//        return BandType::High;
-//    }();
-//
-//    using namespace Params;
-//    std::vector<names> Names;
-//
-//    switch (bandType)
-//    {
-//        case Low:
-//        {
-//            Names = std::vector<names>
-//            {
-//                names::Attack_Low_Band,
-//                names::Bypassed_Low_Band,
-//                names::Mute_Low_Band,
-//                names::Ratio_Low_Band,
-//                names::Release_Low_Band,
-//                names::Solo_Low_Band,
-//                names::Threshold_Low_Band
-//            };
-//
-//            break;
-//        }
-//
-//        case Mid:
-//        {
-//            Names = std::vector<names>
-//            {
-//                names::Attack_Mid_Band,
-//                names::Bypassed_Mid_Band,
-//                names::Mute_Mid_Band,
-//                names::Ratio_Mid_Band,
-//                names::Release_Mid_Band,
-//                names::Solo_Mid_Band,
-//                names::Threshold_Mid_Band
-//            };
-//        }
-//
-//            break;
-//
-//        case High:
-//        {
-//            Names = std::vector<names>
-//            {
-//                names::Attack_High_Band,
-//                names::Bypassed_High_Band,
-//                names::Mute_High_Band,
-//                names::Ratio_High_Band,
-//                names::Release_High_Band,
-//                names::Solo_High_Band,
-//                names::Threshold_High_Band
-//            };
-//        }
-//
-//            break;
-//    }
-//
-//    enum Pos //I think a good thing to do is figure out the difference between an enum and a template. Seems like enums are good for map type things
-//    {
-//        Attack,
-//        Bypassed,
-//        Mute,
-//        Ratio,
-//        Release,
-//        Solo,
-//        Threshold
-//    };
-//
-//    const auto& params = GetParams();
-//    auto getParamHelper = [&params, &apvts = this->apvts, &Names](const auto& pos) -> auto&
-//    {
-//        return getParam(apvts, params, Names.at(pos));
-//    };
-//
-//    attackSliderAttachment.reset();
-//    releaseSliderAttachment.reset();
-//    thresholdSliderAttachment.reset();
-//    ratioSliderAttachment.reset();
-//    bypassButtonAttachment.reset();
-//    soloButtonAttachment.reset();
-//    muteButtonAttachment.reset();
-//    
-//    auto& attackParam = getParamHelper(Pos::Attack);
-//    addLabelPairs(attackSlider.labels, attackParam, "ms");
-//    attackSlider.changeParam(&attackParam);
-//
-//    auto& releaseParam = getParamHelper(Pos::Release);
-//    addLabelPairs(releaseSlider.labels, releaseParam, "ms");
-//    releaseSlider.changeParam(&releaseParam);
-//
-//    auto& thresholdParam = getParamHelper(Pos::Threshold);
-//    addLabelPairs(thresholdSlider.labels, thresholdParam, "dB");
-//    thresholdSlider.changeParam(&thresholdParam);
-//
-//    auto& ratioParamRap = getParamHelper(Pos::Ratio);
-//    ratioSlider.labels.clear();
-//    ratioSlider.labels.add({ 0.f, "1:1" });
-//    auto ratioParam = dynamic_cast<juce::AudioParameterChoice*>(&ratioParamRap);
-//    ratioSlider.labels.add({ 1.f, juce::String(ratioParam->choices.getReference(ratioParam->choices.size() - 1).getIntValue()) + ":1" });
-//    ratioSlider.changeParam(ratioParam);
-//
-//    auto makeAttachmentHelper = [&params, &apvts = this->apvts](auto& attachment, const auto& name,  auto& slider)
-//    {
-//        makeAttachment(attachment, apvts, params, name, slider);
-//    };
-//
-//    makeAttachmentHelper(attackSliderAttachment, Names[Pos::Attack], attackSlider);
-//    makeAttachmentHelper(releaseSliderAttachment, Names[Pos::Release], releaseSlider);
-//    makeAttachmentHelper(thresholdSliderAttachment, Names[Pos::Threshold], thresholdSlider);
-//    makeAttachmentHelper(ratioSliderAttachment, Names[Pos::Ratio], ratioSlider);
-//    makeAttachmentHelper(bypassButtonAttachment, Names[Pos::Bypassed], bypassButton);
-//    makeAttachmentHelper(soloButtonAttachment, Names[Pos::Solo], soloButton);
-//    makeAttachmentHelper(muteButtonAttachment, Names[Pos::Mute], muteButton);
-//}
+        g.setColour(Colour(97u, 18u, 167u)); //purple-
+        g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
 
-//GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
-//{
-//    using namespace Params;
-//    const auto& params = GetParams();
-//
-//    auto getParamHelper = [&params, &apvts](const auto& name) -> auto&
-//    {
-//        return getParam(apvts, params, name);
-//    };
-//
-//    auto& gainInParam = getParamHelper(names::Gain_in);
-//    auto& gainLowMidParam = getParamHelper(names::Low_Mid_Crossover_Freq);
-//    auto& gainMidHighParam = getParamHelper(names::Mid_High_Crossover_Freq);
-//    auto& gainOutParam = getParamHelper(names::Gain_out);
-//
-//    inGainSlider = std::make_unique<RSWL>(&gainInParam, "dB", "INPUT TRIM");
-//    lowMidXoverSlider = std::make_unique<RSWL>(&gainLowMidParam, "Hz", "LOW-MID X-OVER");
-//    midHighXoverSlider = std::make_unique<RSWL>(&gainMidHighParam, "Hz", "MID-HIGH X-OVER");
-//    outGainSlider = std::make_unique<RSWL>(&gainOutParam, "dB", "OUTPUT TRIM");
-//
-//    auto makeAttachmentHelper = [&params, &apvts](auto &attachment, const auto& name, auto& slider)
-//    {
-//        makeAttachment(attachment, apvts, params, name, slider);
-//    };
-//
-//    makeAttachmentHelper(inGainSliderAttachment, names::Gain_in, *inGainSlider);
-//    makeAttachmentHelper(lowMidXoverSliderAttachment, names::Low_Mid_Crossover_Freq, *lowMidXoverSlider);
-//    makeAttachmentHelper(midHighXoverSliderAttachment, names::Mid_High_Crossover_Freq, *midHighXoverSlider);
-//    makeAttachmentHelper(outGainSliderAttachment, names::Gain_out, *outGainSlider);
-//
-//    addLabelPairs(inGainSlider->labels, gainInParam, "dB");
-//    addLabelPairs(lowMidXoverSlider->labels, gainLowMidParam, "Hz");
-//    addLabelPairs(midHighXoverSlider->labels, gainMidHighParam, "Hz");
-//    addLabelPairs(outGainSlider->labels, gainOutParam, "dB");
-//
-//    addAndMakeVisible(*inGainSlider);
-//    addAndMakeVisible(*lowMidXoverSlider);
-//    addAndMakeVisible(*midHighXoverSlider);
-//    addAndMakeVisible(*outGainSlider);
-//}
-//
-//void GlobalControls::paint(juce::Graphics& g)
-//{
-//    auto bounds = getLocalBounds();
-//    drawModuleBackground(g, bounds);
-//}
-//
-//void GlobalControls::resized()
-//{
-//    using namespace juce;
-//
-//    auto bounds = getLocalBounds().reduced(5);
-//    FlexBox flexBox;
-//    flexBox.flexDirection = FlexBox::Direction::row;
-//    flexBox.flexWrap = FlexBox::Wrap::noWrap;
-//
-//    auto spacer = FlexItem().withWidth(4);
-//    auto endCap = FlexItem().withWidth(6);
-//
-//    flexBox.items.add(endCap);
-//    flexBox.items.add(FlexItem(*inGainSlider).withFlex(1.f));
-//    flexBox.items.add(spacer);
-//    flexBox.items.add(FlexItem(*lowMidXoverSlider).withFlex(1.f));
-//    flexBox.items.add(spacer);
-//    flexBox.items.add(FlexItem(*midHighXoverSlider).withFlex(1.f));
-//    flexBox.items.add(spacer);
-//    flexBox.items.add(FlexItem(*outGainSlider).withFlex(1.f));
-//    flexBox.items.add(endCap);
-//
-//    flexBox.performLayout(bounds);
-//}
+        auto rightChannelFFTPath = rightPathProducer.getPath();
+        rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
 
-//==============================================================================
+        g.setColour(Colour(215u, 201u, 134u));
+        g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
+    }
+
+    Path border;
+
+    border.setUsingNonZeroWinding(false);
+
+    border.addRoundedRectangle(getRenderArea(), 4);
+    border.addRectangle(getLocalBounds());
+
+    g.setColour(Colours::black);
+
+    g.fillPath(border);
+
+    drawTextLabels(g);
+
+    g.setColour(Colours::orange);
+    g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);
+}
+
+std::vector<float> SpectrumAnalyzer::getFrequencies()
+{
+    return std::vector<float>
+    {
+        20, /*30, 40,*/ 50, 100,
+            200, /*300, 400,*/ 500, 1000,
+            2000, /*3000, 4000,*/ 5000, 10000,
+            20000
+    };
+}
+
+std::vector<float> SpectrumAnalyzer::getGains()
+{
+    return std::vector<float>
+    {
+        -24, -12, 0, 12, 24
+    };
+}
+
+std::vector<float> SpectrumAnalyzer::getXs(const std::vector<float>& freqs, float left, float width)
+{
+    std::vector<float> xs;
+    for (auto f : freqs)
+    {
+        auto normX = juce::mapFromLog10(f, 20.f, 20000.f);
+        xs.push_back(left + width * normX);
+    }
+
+    return xs;
+}
+
+void SpectrumAnalyzer::drawBackgroundGrid(juce::Graphics& g)
+{
+    using namespace juce;
+    auto freqs = getFrequencies();
+
+    auto renderArea = getAnalysisArea();
+    auto left = renderArea.getX();
+    auto right = renderArea.getRight();
+    auto top = renderArea.getY();
+    auto bottom = renderArea.getBottom();
+    auto width = renderArea.getWidth();
+
+    auto xs = getXs(freqs, left, width);
+
+    g.setColour(Colours::dimgrey);
+    for (auto x : xs)
+    {
+        g.drawVerticalLine(x, top, bottom);
+    }
+
+    auto gain = getGains();
+
+    for (auto gDb : gain)
+    {
+        auto y = jmap(gDb, -24.f, 24.f, float(bottom), float(top));
+
+        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::darkgrey);
+        g.drawHorizontalLine(y, left, right);
+    }
+}
+
+void SpectrumAnalyzer::drawTextLabels(juce::Graphics& g)
+{
+    using namespace juce;
+    g.setColour(Colours::lightgrey);
+    const int fontHeight = 10;
+    g.setFont(fontHeight);
+
+    auto renderArea = getAnalysisArea();
+    auto left = renderArea.getX();
+
+    auto top = renderArea.getY();
+    auto bottom = renderArea.getBottom();
+    auto width = renderArea.getWidth();
+
+    auto freqs = getFrequencies();
+    auto xs = getXs(freqs, left, width);
+
+    for (int i = 0; i < freqs.size(); ++i)
+    {
+        auto f = freqs[i];
+        auto x = xs[i];
+
+        bool addK = false;
+        String str;
+        if (f > 999.f)
+        {
+            addK = true;
+            f /= 1000.f;
+        }
+
+        str << f;
+        if (addK)
+            str << "k";
+        str << "Hz";
+
+        auto textWidth = g.getCurrentFont().getStringWidth(str);
+
+        Rectangle<int> r;
+
+        r.setSize(textWidth, fontHeight);
+        r.setCentre(x, 0);
+        r.setY(1);
+
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
+    }
+
+    auto gain = getGains();
+
+    for (auto gDb : gain)
+    {
+        auto y = jmap(gDb, -24.f, 24.f, float(bottom), float(top));
+
+        String str;
+        if (gDb > 0)
+            str << "+";
+        str << gDb;
+
+        auto textWidth = g.getCurrentFont().getStringWidth(str);
+
+        Rectangle<int> r;
+        r.setSize(textWidth, fontHeight);
+        r.setX(getWidth() - textWidth);
+        r.setCentre(r.getCentreX(), y);
+
+        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::lightgrey);
+
+        g.drawFittedText(str, r, juce::Justification::centredLeft, 1);
+
+        str.clear();
+        str << (gDb - 24.f);
+
+        r.setX(1);
+        textWidth = g.getCurrentFont().getStringWidth(str);
+        r.setSize(textWidth, fontHeight);
+        g.setColour(Colours::lightgrey);
+        g.drawFittedText(str, r, juce::Justification::centredLeft, 1);
+    }
+}
+
+void SpectrumAnalyzer::resized()
+{
+    using namespace juce;
+}
+
+void SpectrumAnalyzer::parameterValueChanged(int parameterIndex, float newValue)
+{
+    parametersChanged.set(true);
+}
+
+void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
+{
+    juce::AudioBuffer<float> tempIncomingBuffer;
+    while (leftChannelFifo->getNumCompleteBuffersAvailable() > 0)
+    {
+        if (leftChannelFifo->getAudioBuffer(tempIncomingBuffer))
+        {
+            auto size = tempIncomingBuffer.getNumSamples();
+
+            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, 0),
+                monoBuffer.getReadPointer(0, size),
+                monoBuffer.getNumSamples() - size);
+
+            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, monoBuffer.getNumSamples() - size),
+                tempIncomingBuffer.getReadPointer(0, 0),
+                size);
+
+            leftChannelFFTDataGenerator.produceFFTDataForRendering(monoBuffer, -48.f);
+        }
+    }
+
+    const auto fftSize = leftChannelFFTDataGenerator.getFFTSize();
+    const auto binWidth = sampleRate / double(fftSize);
+
+    while (leftChannelFFTDataGenerator.getNumAvailableFFTDataBlocks() > 0)
+    {
+        std::vector<float> fftData;
+        if (leftChannelFFTDataGenerator.getFFTData(fftData))
+        {
+            pathProducer.generatePath(fftData, fftBounds, fftSize, binWidth, -48.f);
+        }
+    }
+
+    while (pathProducer.getNumPathsAvailable() > 0)
+    {
+        pathProducer.getPath(leftChannelFFTPath);
+    }
+}
+
+void SpectrumAnalyzer::timerCallback()
+{
+    if (shouldShowFFTAnalysis)
+    {
+        auto fftBounds = getAnalysisArea().toFloat();
+        auto sampleRate = audioProcessor.getSampleRate();
+
+        leftPathProducer.process(fftBounds, sampleRate);
+        rightPathProducer.process(fftBounds, sampleRate);
+    }
+
+    if (parametersChanged.compareAndSetBool(false, true))
+    {
+        
+    }
+
+    repaint();
+}
+
+
+juce::Rectangle<int> SpectrumAnalyzer::getRenderArea()
+{
+    auto bounds = getLocalBounds();
+
+    bounds.removeFromTop(12);
+    bounds.removeFromBottom(2);
+    bounds.removeFromLeft(20);
+    bounds.removeFromRight(20);
+
+    return bounds;
+}
+
+
+juce::Rectangle<int> SpectrumAnalyzer::getAnalysisArea()
+{
+    auto bounds = getRenderArea();
+    bounds.removeFromTop(4);
+    bounds.removeFromBottom(4);
+    return bounds;
+}
+
 SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBCompAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
@@ -645,7 +312,7 @@ SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBComp
     // editor's size to whatever you need it to be.
     setLookAndFeel(&lnf);
     //addAndMakeVisible(controlBar);
-    //addAndMakeVisible(analyzer);
+    addAndMakeVisible(analyzer);
     addAndMakeVisible(globalControls);
     addAndMakeVisible(bandControls);
 
