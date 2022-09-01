@@ -66,4 +66,4 @@ void addLabelPairs(Labels& labels, const ParamType& param, const SuffixType& suf
     labels.add({ 1.f, getValString(param, false, suffix) });
 }
 
-void drawModuleBackground(juce::Graphics& g, juce::Rectangle<int> bounds);
+juce::Rectangle<int> drawModuleBackground(juce::Graphics& g, juce::Rectangle<int> bounds);

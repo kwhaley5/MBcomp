@@ -291,7 +291,7 @@ void SimpleMBCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     updateState();
 
     
-    if (true) //Spectrum analyzer testing
+    if (false) //Spectrum analyzer testing
     {
         buffer.clear();
         auto block = juce::dsp::AudioBlock<float>(buffer);
