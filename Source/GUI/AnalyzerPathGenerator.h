@@ -24,7 +24,7 @@ struct AnalyzerPathGenerator
         float negativeInfinity)
     {
         auto top = fftBounds.getY();
-        auto bottom = fftBounds.getHeight();
+        auto bottom = fftBounds.getBottom();
         auto width = fftBounds.getWidth();
 
         int numBins = (int)fftSize / 2;
@@ -36,7 +36,7 @@ struct AnalyzerPathGenerator
         {
             return juce::jmap(v,
                 negativeInfinity, 0.f,
-                float(bottom + 10), top);
+                bottom, top);
         };
 
         auto y = map(renderData[0]);
