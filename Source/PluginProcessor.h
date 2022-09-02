@@ -66,13 +66,13 @@ public:
     using BlockType = juce::AudioBuffer<float>;
     SingleChannelSampleFifo<BlockType> leftChannelFifo{ Channel::Left };
     SingleChannelSampleFifo<BlockType> rightChannelFifo{ Channel::Right };
-private:
     
     std::array<CompressorBand, 3> compressors;
     CompressorBand& lowBandComp = compressors[0];
     CompressorBand& midBandComp = compressors[1];
     CompressorBand& highBandComp = compressors[2];
 
+private:
     using Filter = juce::dsp::LinkwitzRileyFilter<float>;
     //     fc0  fc1
     Filter LP1, AP2,
