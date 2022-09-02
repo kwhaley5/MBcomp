@@ -54,4 +54,13 @@ private:
     PathProducer leftPathProducer, rightPathProducer;
 
     void drawFFTAnalysis(juce::Graphics& g, juce::Rectangle<int> bounds);
+
+    void drawCrossovers(juce::Graphics& g, juce::Rectangle<int> bounds);
+
+    juce::AudioParameterFloat* lowMidXoverParam{ nullptr };
+    juce::AudioParameterFloat* midHighXoverParam{ nullptr };
+
+    juce::AudioParameterFloat* lowTheshParam{ nullptr };
+    juce::AudioParameterFloat* midThreshParam{ nullptr };
+    juce::AudioParameterFloat* highThreshParam{ nullptr };
 };

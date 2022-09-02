@@ -456,9 +456,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
     layout.add(std::make_unique<AudioParameterBool>(params.at(names::Solo_Mid_Band), params.at(names::Solo_Low_Band), false));
     layout.add(std::make_unique<AudioParameterBool>(params.at(names::Solo_High_Band), params.at(names::Solo_Low_Band), false));
 
-    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Low_Mid_Crossover_Freq), params.at(names::Low_Mid_Crossover_Freq), NormalisableRange<float>(20, 999, 1, 1), 400));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Low_Mid_Crossover_Freq), params.at(names::Low_Mid_Crossover_Freq), NormalisableRange<float>(MIN_FREQUENCY, 999, 1, 1), 400));
 
-    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Mid_High_Crossover_Freq), params.at(names::Mid_High_Crossover_Freq), NormalisableRange<float>(1000, 20000, 1, 1), 2000));
+    layout.add(std::make_unique<AudioParameterFloat>(params.at(names::Mid_High_Crossover_Freq), params.at(names::Mid_High_Crossover_Freq), NormalisableRange<float>(1000, MAX_FREQUENCY, 1, 1), 2000));
         
 
     return layout;
