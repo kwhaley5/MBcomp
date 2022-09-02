@@ -20,7 +20,7 @@ struct CompressorBandControls : juce::Component, juce::Button::Listener
     void paint(juce::Graphics& g) override;
 
     void buttonClicked(juce::Button* button) override;
-
+    void toggleAllBands(bool shouldBeBypassed);
 private:
     juce::AudioProcessorValueTreeState& apvts;
     RotarySliderWithLabels attackSlider, releaseSlider, thresholdSlider;

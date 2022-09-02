@@ -13,4 +13,9 @@
 
 struct PowerButton : juce::ToggleButton {};
 
-//analyzer Button here eventually
+struct AnalyzerButton : juce::ToggleButton
+{
+    void resized() override;
+
+    juce::Path randomPath;
+};
