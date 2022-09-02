@@ -407,7 +407,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleMBCompAudioProcessor::
     const auto& params = GetParams();
 
     auto gainRange = NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f);
-    auto thresholdRange = NormalisableRange<float>(-60, 12, 1, 1);
+    auto thresholdRange = NormalisableRange<float>(MIN_THRESHOLD, MAX_DECIBLES, 1, 1);
     auto attackAndReleaseRange = NormalisableRange<float>(5, 500, 1, 1);
 
     //In and out Gain
