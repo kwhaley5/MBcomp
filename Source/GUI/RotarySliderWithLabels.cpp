@@ -23,7 +23,7 @@ void RotarySliderWithLabels::paint(juce::Graphics& g) {
     auto sliderBounds = getSliderBounds();
 
     auto bounds = getLocalBounds();
-    g.setColour(Colours::blueviolet);
+    g.setColour(Colours::white);
     g.drawFittedText(getName(), bounds.removeFromTop(getTextBoxHeight() - 3), Justification::centredBottom, 1);
 
     //g.setColour(Colours::red);
@@ -44,7 +44,7 @@ void RotarySliderWithLabels::paint(juce::Graphics& g) {
     auto center = sliderBounds.toFloat().getCentre();
     auto radius = sliderBounds.getWidth() * .5f;
 
-    g.setColour(Colour(0u, 172u, 1u));
+    g.setColour(Colour(64u, 194u, 230u));
     g.setFont(15);
 
     auto numChoices = labels.size();

@@ -21,6 +21,7 @@
 struct ControlBar : juce::Component
 {
     ControlBar();
+    void paint(juce::Graphics& g) override;
     void resized() override;
 
     AnalyzerButton analyzerButton;

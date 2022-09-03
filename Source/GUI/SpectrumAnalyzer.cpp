@@ -63,13 +63,13 @@ void SpectrumAnalyzer::drawFFTAnalysis(juce::Graphics& g, juce::Rectangle<int> b
     auto leftChannelFFTPath = leftPathProducer.getPath();
     leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), 0));
 
-    g.setColour(Colour(97u, 18u, 167u)); //purple-
+    g.setColour(Colour(186u, 34u, 34u)); //Colors for left and right of spectrum response
     g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
 
     auto rightChannelFFTPath = rightPathProducer.getPath();
     rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), 0));
 
-    g.setColour(Colour(215u, 201u, 134u));
+    g.setColour(Colour(64u, 194u, 230u));
     g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
 }
 
@@ -113,11 +113,11 @@ void SpectrumAnalyzer::drawCrossovers(juce::Graphics& g, juce::Rectangle <int> b
     };
         
     auto lowMidX = mapX(lowMidXoverParam->get());
-    g.setColour(Colours::orange);
+    g.setColour(Colour(64u, 194u, 230u));
     g.drawVerticalLine(lowMidX, top, bottom);
 
     auto midHighX = mapX(midHighXoverParam->get());
-    g.setColour(Colours::orange);
+    g.setColour(Colour(64u, 194u, 230u));
     g.drawVerticalLine(midHighX, top, bottom);
 
     auto mapY = [top, bottom](float gDb) 
@@ -126,13 +126,13 @@ void SpectrumAnalyzer::drawCrossovers(juce::Graphics& g, juce::Rectangle <int> b
     };
 
     auto zeroDb = mapY(0.f);
-    g.setColour(Colours::red.withAlpha(0.5f));
+    g.setColour(Colour(186u, 34u, 34u).withAlpha(0.5f));
 
     g.fillRect(Rectangle<float>::leftTopRightBottom(left, zeroDb, lowMidX, mapY(lowBandGR)));
     g.fillRect(Rectangle<float>::leftTopRightBottom(lowMidX, zeroDb, midHighX, mapY(midBandGR)));
     g.fillRect(Rectangle<float>::leftTopRightBottom(midHighX, zeroDb, right, mapY(highBandGR)));
 
-    g.setColour(Colours::yellow);
+    g.setColour(Colours::white);
     g.drawHorizontalLine(mapY(lowTheshParam->get()), left, lowMidX);
     g.drawHorizontalLine(mapY(midThreshParam->get()), lowMidX, midHighX);
     g.drawHorizontalLine(mapY(highThreshParam->get()), midHighX, right);
@@ -215,7 +215,8 @@ void SpectrumAnalyzer::drawBackgroundGrid(juce::Graphics& g, juce::Rectangle<int
     {
         auto y = jmap(gDb, NEGATIVE_INFINITY, MAX_DECIBLES, float(bottom), float(top));
 
-        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::darkgrey);
+        g.setColour(Colour(64u, 194u, 230u));
+        g.setColour(gDb == 0.f ? Colour(186u, 34u, 34u) : Colours::darkgrey);
         g.drawHorizontalLine(y, left, right);
     }
 }
@@ -223,7 +224,7 @@ void SpectrumAnalyzer::drawBackgroundGrid(juce::Graphics& g, juce::Rectangle<int
 void SpectrumAnalyzer::drawTextLabels(juce::Graphics& g, juce::Rectangle<int> bounds)
 {
     using namespace juce;
-    g.setColour(Colours::lightgrey);
+    g.setColour(Colour(64u, 194u, 230u));
     const int fontHeight = 10;
     g.setFont(fontHeight);
 
@@ -284,7 +285,7 @@ void SpectrumAnalyzer::drawTextLabels(juce::Graphics& g, juce::Rectangle<int> bo
         r.setX(bounds.getRight() - textWidth);
         r.setCentre(r.getCentreX(), y);
 
-        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::lightgrey);
+        g.setColour(gDb == 0.f ? Colour(186u, 34u, 34u) : Colour(64u, 194u, 230u));
 
         g.drawFittedText(str, r, juce::Justification::centredLeft, 1);
 
@@ -294,7 +295,7 @@ void SpectrumAnalyzer::drawTextLabels(juce::Graphics& g, juce::Rectangle<int> bo
         r.setX(bounds.getX() + 1);
         //textWidth = g.getCurrentFont().getStringWidth(str);
        // r.setSize(textWidth, fontHeight);
-        //g.setColour(Colours::lightgrey);
+        //g.setColour(Colour(64u, 194u, 230u));
         g.drawFittedText(str, r, juce::Justification::centredLeft, 1);
     }
 }

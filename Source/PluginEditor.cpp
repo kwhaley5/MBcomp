@@ -8,15 +8,22 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-
 #include "DSP/Params.h"
 
 ControlBar::ControlBar()
 {
+
     analyzerButton.setToggleState(true, juce::dontSendNotification);
     addAndMakeVisible(analyzerButton);
 
     addAndMakeVisible(globalBypassButton);
+}
+
+void ControlBar::paint(juce::Graphics& g)
+{
+    using namespace juce;
+    g.setColour(Colours::black); 
+    g.fillAll();
 }
 
 void ControlBar::resized()

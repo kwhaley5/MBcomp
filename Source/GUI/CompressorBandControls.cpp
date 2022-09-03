@@ -33,11 +33,11 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
 
 
     bypassButton.setName("X");
-    bypassButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::yellow);
+    bypassButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::darkgrey);
     bypassButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
 
     soloButton.setName("S");
-    soloButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::green);
+    soloButton.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colour(64u, 194u, 230u));
     soloButton.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
 
     muteButton.setName("M");
@@ -49,15 +49,15 @@ CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeStat
     addAndMakeVisible(muteButton);
 
     lowBand.setName("Low");
-    lowBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    lowBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::white);
     lowBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
 
     midBand.setName("Mid");
-    midBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    midBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::white);
     midBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
 
     highBand.setName("High");
-    highBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    highBand.setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::white);
     highBand.setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
 
     lowBand.setRadioGroupId(1);
@@ -183,7 +183,7 @@ void CompressorBandControls::updateActiveBandFillColour(juce::Button& clickedBut
 
 void CompressorBandControls::resetActiveBandColours()
 {
-    activeBand->setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::grey);
+    activeBand->setColour(juce::TextButton::ColourIds::buttonOnColourId, juce::Colours::white);
     activeBand->setColour(juce::TextButton::ColourIds::buttonColourId, juce::Colours::black);
     activeBand->repaint();
 }

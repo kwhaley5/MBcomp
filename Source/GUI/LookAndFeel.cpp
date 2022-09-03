@@ -19,10 +19,11 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
 
     auto enabled = slider.isEnabled();
 
-    g.setColour(enabled ? Colour(97u, 18u, 167u) : Colours::darkgrey);
+    g.setColour(enabled ? Colour(186u, 34u, 34u) : Colours::darkgrey);
     g.fillEllipse(bounds);
 
-    g.setColour(enabled ? Colour(255u, 154u, 1u) : Colours::grey);
+    g.setColour(enabled ? Colours::white : Colours::grey);
+    //g.setColour(enabled ? ColorScheme::getSliderBorderColor() : Colours::grey);
     g.drawEllipse(bounds, 1.f);
 
     if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider)) 
@@ -86,7 +87,7 @@ void LookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& toggle
 
         PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
 
-        auto color = toggleButton.getToggleState() ? Colours::dimgrey : Colour(0u, 172u, 1u);
+        auto color = toggleButton.getToggleState() ? Colours::dimgrey : Colours::white;
 
         g.setColour(color);
         g.strokePath(powerButton, pst);
@@ -95,7 +96,7 @@ void LookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& toggle
 
     else if (auto* analyzerButton = dynamic_cast<AnalyzerButton*>(&toggleButton))
     {
-        auto color = !toggleButton.getToggleState() ? Colours::dimgrey : Colour(0u, 172u, 1u);
+        auto color = !toggleButton.getToggleState() ? Colours::dimgrey : Colours::white;
 
         g.setColour(color);
 
